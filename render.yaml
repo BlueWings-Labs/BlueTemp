@@ -1,0 +1,22 @@
+# Render Blueprint — BlueWings MCP only (HTTP transport for ICA / Context Forge)
+# Deploy: Render Dashboard → New → Blueprint → connect repo
+# Docs: docs/MCP_RENDER_ICA.md
+
+services:
+  - type: web
+    name: bluewings-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile.mcp
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: MCP_TRANSPORT
+        value: streamable-http
+      - key: MCP_HOST
+        value: 0.0.0.0
+      - key: MCP_PORT
+        value: "8080"
+      - key: MCP_PATH
+        value: /mcp
+      - key: GITHUB_TOKEN
+        sync: false

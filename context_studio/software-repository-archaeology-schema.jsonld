@@ -1,0 +1,491 @@
+{
+  "@context": {
+    "sra": "https://bluewings.dev/sra#",
+    "schema": "http://schema.org/",
+    "id": "@id",
+    "type": "@type",
+    "name": "schema:name",
+    "description": "schema:description",
+    "attributes": "sra:attributes",
+    "identityKey": "sra:identityKey",
+    "humanRef": "sra:humanRef",
+    "invariant": "sra:invariant",
+    "hasState": {
+      "@id": "sra:hasState",
+      "@type": "@id"
+    },
+    "initialState": {
+      "@id": "sra:initialState",
+      "@type": "@id"
+    },
+    "terminalStates": {
+      "@id": "sra:terminalStates",
+      "@type": "@id"
+    },
+    "relatesTo": {
+      "@id": "sra:relatesTo",
+      "@type": "@id"
+    },
+    "emitsEvent": {
+      "@id": "sra:emitsEvent",
+      "@type": "@id"
+    },
+    "from": {
+      "@id": "sra:from",
+      "@type": "@id"
+    },
+    "to": {
+      "@id": "sra:to",
+      "@type": "@id"
+    },
+    "precondition": "sra:precondition",
+    "postcondition": "sra:postcondition",
+    "Entity": "sra:Entity",
+    "Operation": "sra:Operation",
+    "State": "sra:State"
+  },
+  "@graph": [
+    {
+      "id": "sra:Repository",
+      "type": "Entity",
+      "name": "Repository",
+      "description": "A version-controlled software project hosted on GitHub",
+      "identityKey": "fullName: owner/repo",
+      "humanRef": "fullName",
+      "attributes": {
+        "fullName": "string",
+        "owner": "string",
+        "repo": "string",
+        "defaultBranch": "string",
+        "primaryLanguage": "string|null",
+        "description": "string|null",
+        "collectedAt": "ISO-8601",
+        "stars": "number",
+        "topics": "string[]"
+      },
+      "invariant": [
+        "fullName must be unique",
+        "collectedAt records snapshot time for Context Studio grounding"
+      ],
+      "relatesTo": [
+        "sra:Module",
+        "sra:SourceFile",
+        "sra:PullRequest",
+        "sra:Contributor",
+        "sra:DependencyManifest",
+        "sra:ProjectStructure",
+        "sra:DependencyGraph"
+      ]
+    },
+    {
+      "id": "sra:ProjectStructure",
+      "type": "Entity",
+      "name": "ProjectStructure",
+      "description": "The repository directory layout, layers, and how code areas connect via imports",
+      "identityKey": "structureKey: owner/repo",
+      "humanRef": "fullName",
+      "attributes": {
+        "totalFiles": "number",
+        "totalDirectories": "number",
+        "collectedAt": "ISO-8601",
+        "treeDepth": "number"
+      },
+      "invariant": [
+        "Must align with snapshot file tree at collectedAt"
+      ],
+      "relatesTo": [
+        "sra:Repository",
+        "sra:Directory",
+        "sra:CodeLayer",
+        "sra:Module"
+      ]
+    },
+    {
+      "id": "sra:Directory",
+      "type": "Entity",
+      "name": "Directory",
+      "description": "A folder in the repository tree with file and subdirectory counts",
+      "identityKey": "dirPath: repository-relative path",
+      "humanRef": "path",
+      "attributes": {
+        "path": "string",
+        "name": "string",
+        "depth": "number",
+        "fileCount": "number",
+        "subdirectoryCount": "number",
+        "layer": "string",
+        "parentPath": "string|null"
+      },
+      "invariant": [
+        "path must be unique within snapshot"
+      ],
+      "relatesTo": ["sra:ProjectStructure", "sra:Module", "sra:Repository"]
+    },
+    {
+      "id": "sra:CodeLayer",
+      "type": "Entity",
+      "name": "CodeLayer",
+      "description": "Logical layer grouping directories (presentation, api, services, tests, etc.)",
+      "identityKey": "layerName: string",
+      "humanRef": "layer",
+      "attributes": {
+        "layer": "string",
+        "role": "string",
+        "fileCount": "number",
+        "topDirectories": "string[]"
+      },
+      "invariant": [],
+      "relatesTo": ["sra:ProjectStructure", "sra:Directory"]
+    },
+    {
+      "id": "sra:ModuleConnection",
+      "type": "Entity",
+      "name": "ModuleConnection",
+      "description": "Aggregated import relationship between top-level code areas",
+      "identityKey": "connectionKey: fromModule->toModule",
+      "humanRef": "fromModule",
+      "attributes": {
+        "fromModule": "string",
+        "toModule": "string",
+        "importCount": "number"
+      },
+      "invariant": [
+        "fromModule and toModule must differ"
+      ],
+      "relatesTo": ["sra:Module", "sra:ProjectStructure"]
+    },
+    {
+      "id": "sra:Module",
+      "type": "Entity",
+      "name": "Module",
+      "description": "A top-level directory cluster representing an architectural module",
+      "identityKey": "moduleKey: owner/repo/moduleName",
+      "humanRef": "moduleName",
+      "attributes": {
+        "moduleName": "string",
+        "fileCount": "number",
+        "sizeBytes": "number",
+        "importance": "core|supporting"
+      },
+      "invariant": [
+        "moduleName is unique within a repository"
+      ],
+      "relatesTo": ["sra:Repository", "sra:SourceFile"]
+    },
+    {
+      "id": "sra:SourceFile",
+      "type": "Entity",
+      "name": "SourceFile",
+      "description": "An analyzable source file in the repository tree",
+      "identityKey": "path: repository-relative path",
+      "humanRef": "path",
+      "attributes": {
+        "path": "string",
+        "language": "string",
+        "inDegree": "number|null",
+        "outDegree": "number|null",
+        "cluster": "string|null"
+      },
+      "invariant": [
+        "path must be unique within a repository"
+      ],
+      "relatesTo": ["sra:Module", "sra:Repository", "sra:PullRequest"]
+    },
+    {
+      "id": "sra:HotFile",
+      "type": "Entity",
+      "name": "HotFile",
+      "description": "A high-churn source file with elevated change risk",
+      "identityKey": "path: repository-relative path",
+      "humanRef": "path",
+      "attributes": {
+        "path": "string",
+        "prTouchCount": "number",
+        "additions": "number",
+        "deletions": "number",
+        "risk": "low|medium|high"
+      },
+      "invariant": [
+        "risk must be low, medium, or high",
+        "prTouchCount >= 1"
+      ],
+      "hasState": [
+        "sra:FileRiskLow",
+        "sra:FileRiskMedium",
+        "sra:FileRiskHigh"
+      ],
+      "initialState": "sra:FileRiskLow",
+      "relatesTo": ["sra:SourceFile", "sra:Repository", "sra:PullRequest"]
+    },
+    {
+      "id": "sra:PullRequest",
+      "type": "Entity",
+      "name": "PullRequest",
+      "description": "A GitHub pull request that changed repository history",
+      "identityKey": "prKey: owner/repo/number",
+      "humanRef": "number",
+      "attributes": {
+        "number": "number",
+        "title": "string",
+        "mergedAt": "ISO-8601|null",
+        "url": "string",
+        "architectural": "boolean"
+      },
+      "invariant": [
+        "number must be positive integer"
+      ],
+      "relatesTo": ["sra:Repository", "sra:Contributor", "sra:SourceFile"]
+    },
+    {
+      "id": "sra:Contributor",
+      "type": "Entity",
+      "name": "Contributor",
+      "description": "A person who contributed commits or pull requests",
+      "identityKey": "login: GitHub username",
+      "humanRef": "login",
+      "attributes": {
+        "login": "string",
+        "commits": "number",
+        "prsAuthored": "number",
+        "profileUrl": "string|null"
+      },
+      "invariant": [
+        "login must be unique per repository snapshot"
+      ],
+      "relatesTo": ["sra:Repository", "sra:PullRequest"]
+    },
+    {
+      "id": "sra:DependencyManifest",
+      "type": "Entity",
+      "name": "DependencyManifest",
+      "description": "A dependency or build manifest file detected in the tree",
+      "identityKey": "path: repository-relative path",
+      "humanRef": "path",
+      "attributes": {
+        "path": "string",
+        "kind": "string"
+      },
+      "invariant": [],
+      "relatesTo": ["sra:Repository"]
+    },
+    {
+      "id": "sra:DependencyHub",
+      "type": "Entity",
+      "name": "DependencyHub",
+      "description": "A highly connected file in the import dependency graph",
+      "identityKey": "path: repository-relative path",
+      "humanRef": "path",
+      "attributes": {
+        "path": "string",
+        "inDegree": "number",
+        "outDegree": "number",
+        "language": "string"
+      },
+      "invariant": [
+        "inDegree >= 1 for hub classification"
+      ],
+      "relatesTo": ["sra:SourceFile", "sra:Repository", "sra:DependencyGraph"]
+    },
+    {
+      "id": "sra:DependencyGraph",
+      "type": "Entity",
+      "name": "DependencyGraph",
+      "description": "Sampled import graph showing how source files depend on each other and on external packages",
+      "identityKey": "graphKey: owner/repo/snapshot",
+      "humanRef": "fullName",
+      "attributes": {
+        "filesAnalyzed": "number",
+        "fileToFileEdges": "number",
+        "packageImportEdges": "number",
+        "modeledFileCount": "number",
+        "truncated": "boolean",
+        "languages": "object"
+      },
+      "invariant": [
+        "Edges are sampled — not a complete graph for very large repositories"
+      ],
+      "relatesTo": ["sra:Repository", "sra:SourceFile", "sra:ExternalPackage", "sra:DependencyHub"]
+    },
+    {
+      "id": "sra:ExternalPackage",
+      "type": "Entity",
+      "name": "ExternalPackage",
+      "description": "Third-party package referenced by import statements in analyzed files",
+      "identityKey": "packageName: string",
+      "humanRef": "packageName",
+      "attributes": {
+        "packageName": "string",
+        "importCount": "number"
+      },
+      "invariant": [],
+      "relatesTo": ["sra:DependencyGraph", "sra:Repository"]
+    },
+    {
+      "id": "sra:MigrationProfile",
+      "type": "Entity",
+      "name": "MigrationProfile",
+      "description": "Migration difficulty and stack signals for the repository",
+      "identityKey": "repoKey: owner/repo",
+      "humanRef": "difficultyEstimate",
+      "attributes": {
+        "detectedStack": "string[]",
+        "difficultyEstimate": "low|medium|high",
+        "hotFileCount": "number",
+        "totalFiles": "number",
+        "prCount": "number"
+      },
+      "invariant": [
+        "difficultyEstimate must be low, medium, or high"
+      ],
+      "relatesTo": ["sra:Repository"]
+    },
+    {
+      "id": "sra:HasProjectStructure",
+      "type": "Operation",
+      "name": "HasProjectStructure",
+      "description": "Links repository to its directory and connectivity model",
+      "from": "sra:Repository",
+      "to": "sra:ProjectStructure",
+      "precondition": ["File tree snapshot available"],
+      "postcondition": ["Agents can navigate project layout from context"]
+    },
+    {
+      "id": "sra:ContainsDirectory",
+      "type": "Operation",
+      "name": "ContainsDirectory",
+      "description": "Project structure includes a directory node",
+      "from": "sra:ProjectStructure",
+      "to": "sra:Directory",
+      "precondition": ["Directory path exists in tree"],
+      "postcondition": ["Directory is part of documented layout"]
+    },
+    {
+      "id": "sra:GroupedInLayer",
+      "type": "Operation",
+      "name": "GroupedInLayer",
+      "description": "Directory belongs to a logical code layer",
+      "from": "sra:Directory",
+      "to": "sra:CodeLayer",
+      "precondition": ["Layer classification derived from path"],
+      "postcondition": ["Layer semantics available for onboarding"]
+    },
+    {
+      "id": "sra:ImportsFromModule",
+      "type": "Operation",
+      "name": "ImportsFromModule",
+      "description": "One top-level area imports code from another (sampled graph)",
+      "from": "sra:Module",
+      "to": "sra:Module",
+      "precondition": ["Dependency graph sample includes cross-folder imports"],
+      "postcondition": ["Structural coupling between areas is recorded"]
+    },
+    {
+      "id": "sra:ContainsModule",
+      "type": "Operation",
+      "name": "ContainsModule",
+      "description": "Links a repository to an architectural module",
+      "from": "sra:Repository",
+      "to": "sra:Module",
+      "precondition": ["Repository and Module must exist in the same snapshot"],
+      "postcondition": ["Module is part of the repository structure"]
+    },
+    {
+      "id": "sra:HasHotFile",
+      "type": "Operation",
+      "name": "HasHotFile",
+      "description": "Links a repository to a high-churn file",
+      "from": "sra:Repository",
+      "to": "sra:HotFile",
+      "precondition": ["HotFile risk must be documented"],
+      "postcondition": ["HotFile is tracked for change management"]
+    },
+    {
+      "id": "sra:TouchedByPullRequest",
+      "type": "Operation",
+      "name": "TouchedByPullRequest",
+      "description": "Associates churn or architecture signals with a pull request",
+      "from": "sra:HotFile",
+      "to": "sra:PullRequest",
+      "precondition": ["Pull request exists in sampled history"],
+      "postcondition": ["Historical change context is preserved"]
+    },
+    {
+      "id": "sra:ImportsFile",
+      "type": "Operation",
+      "name": "ImportsFile",
+      "description": "Directed import edge between source files (sampled dependency graph)",
+      "from": "sra:SourceFile",
+      "to": "sra:SourceFile",
+      "precondition": ["Both files exist in dependency graph sample"],
+      "postcondition": ["Import relationship is recorded for blast-radius analysis"]
+    },
+    {
+      "id": "sra:HasDependencyGraph",
+      "type": "Operation",
+      "name": "HasDependencyGraph",
+      "description": "Links repository to its file-level import dependency snapshot",
+      "from": "sra:Repository",
+      "to": "sra:DependencyGraph",
+      "precondition": ["Dependency graph analysis completed"],
+      "postcondition": ["Agents can reason about file-to-file coupling and blast radius"]
+    },
+    {
+      "id": "sra:ContainedInDependencyGraph",
+      "type": "Operation",
+      "name": "ContainedInDependencyGraph",
+      "description": "Source file node is part of the dependency graph sample",
+      "from": "sra:DependencyGraph",
+      "to": "sra:SourceFile",
+      "precondition": ["File was analyzed for imports"],
+      "postcondition": ["File import lists are available in context"]
+    },
+    {
+      "id": "sra:DependsOnPackage",
+      "type": "Operation",
+      "name": "DependsOnPackage",
+      "description": "Repository sample imports an external package",
+      "from": "sra:DependencyGraph",
+      "to": "sra:ExternalPackage",
+      "precondition": ["Package appears in import statements"],
+      "postcondition": ["External dependency is documented for agents"]
+    },
+    {
+      "id": "sra:HasMigrationProfile",
+      "type": "Operation",
+      "name": "HasMigrationProfile",
+      "description": "Links repository to migration analysis",
+      "from": "sra:Repository",
+      "to": "sra:MigrationProfile",
+      "precondition": ["Snapshot analysis completed"],
+      "postcondition": ["Migration difficulty is available to agents"]
+    },
+    {
+      "id": "sra:AuthoredBy",
+      "type": "Operation",
+      "name": "AuthoredBy",
+      "description": "Links a pull request to a contributor",
+      "from": "sra:PullRequest",
+      "to": "sra:Contributor",
+      "precondition": ["Contributor exists in snapshot"],
+      "postcondition": ["Ownership context is available for onboarding"]
+    },
+    {
+      "id": "sra:FileRiskLow",
+      "type": "State",
+      "name": "FileRiskLow",
+      "description": "File has low PR churn in sampled history"
+    },
+    {
+      "id": "sra:FileRiskMedium",
+      "type": "State",
+      "name": "FileRiskMedium",
+      "description": "File has medium PR churn — review recommended"
+    },
+    {
+      "id": "sra:FileRiskHigh",
+      "type": "State",
+      "name": "FileRiskHigh",
+      "description": "File has high PR churn — architecture review recommended"
+    }
+  ]
+}
