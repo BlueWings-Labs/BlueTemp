@@ -849,3 +849,103 @@ async def search_issues_and_prs(
     client: GitHubClient | None = None,
 ) -> list[dict]:
     return await _get_client(client).search_issues_and_prs(owner, repo, query, kind)
+
+# ── Repository file/code search ───────────────────────────────────────────────
+async def search_repository_files(
+    owner: str,
+    repo: str,
+    query: str,
+    ref: str = "",
+    per_page: int = 30,
+    page: int = 1,
+    client: GitHubClient | None = None,
+) -> list[dict]:
+    """
+    Search repository files by filename/path.
+
+    Examples:
+    - Dockerfile
+    - *.yml
+    - package.json
+    - src/api
+
+    Supports both github.com and GitHub Enterprise.
+    """
+
+    gh_client = client or GitHubClient()
+
+    q = f"{query} repo:{owner}/{repo}"
+
+    response = await gh_client.get(
+        "/search/code",
+        params={
+            "q": q,
+            "per_page": per_page,
+            "page": page,
+        },
+    )
+
+    items = response.get("items", [])
+
+    results = []
+
+    for item in items:
+        results.append({
+            "name": item.get("name"),
+            "path": item.get("path"),
+            "sha": item.get("sha"),
+            "url": item.get("html_url"),
+            "repository": item.get("repository", {}).get("full_name"),
+        })
+
+    return results
+
+
+async def search_repository_code(
+    owner: str,
+    repo: str,
+    query: str,
+    ref: str = "",
+    per_page: int = 30,
+    page: int = 1,
+    client: GitHubClient | None = None,
+) -> list[dict]:
+    """
+    Search code/content inside repository files.
+
+    Examples:
+    - FastAPI
+    - TODO
+    - deprecated_function
+    - api_router
+
+    Supports both github.com and GitHub Enterprise.
+    """
+
+    gh_client = client or GitHubClient()
+
+    q = f"{query} repo:{owner}/{repo}"
+
+    response = await gh_client.get(
+        "/search/code",
+        params={
+            "q": q,
+            "per_page": per_page,
+            "page": page,
+        },
+    )
+
+    items = response.get("items", [])
+
+    results = []
+
+    for item in items:
+        results.append({
+            "name": item.get("name"),
+            "path": item.get("path"),
+            "sha": item.get("sha"),
+            "url": item.get("html_url"),
+            "repository": item.get("repository", {}).get("full_name"),
+        })
+
+    return results
