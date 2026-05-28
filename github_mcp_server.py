@@ -49,35 +49,70 @@ def _client(github_host: str = "") -> GitHubClient | None:
     return None
 
 
-# ── Pull requests ─────────────────────────────────────────────────────────────
-
 @mcp.tool()
-async def list_pull_requests(
+async def search_pull_requests(
     owner: str,
     repo: str,
-    state: str = "all",
+    query: str = "",
+    state: str = "open",
     sort: str = "created",
     direction: str = "desc",
+    author: str = "",
+    labels: str = "",
+    base: str = "",
+    head: str = "",
+    draft: bool | None = None,
     per_page: int = 30,
     page: int = 1,
     max_pages: int = 1,
     github_host: str = "",
 ) -> list[dict]:
     """
-    List pull requests for a repository (paginated).
+    Advanced pull request search and filtering tool.
 
-    Defaults: 30 PRs from page 1 — safe for large repos.
-    For IBM GitHub Enterprise set github_host='ibm' (requires GITHUB_IBM_TOKEN in env).
+    Features:
+    - Search PRs by keyword
+    - Filter by author
+    - Filter by labels
+    - Filter by base branch
+    - Filter by head branch
+    - Filter draft PRs
+    - Pagination support
+    - GitHub Enterprise support
+
+    Examples:
+    - Find authentication PRs
+    - Search bugfix PRs
+    - List PRs by a contributor
+    - Find release branch PRs
+    - Detect stale draft PRs
+
+    Query Examples:
+    - "authentication"
+    - "bug fix"
+    - "dependency update"
+    - "FastAPI"
+
+    Use github_host='ibm' for GitHub Enterprise.
     """
-    return await gh.list_pull_requests(
-        owner, repo,
-        state=state, sort=sort, direction=direction,
+
+    return await gh.search_pull_requests(
+        owner=owner,
+        repo=repo,
+        query=query,
+        state=state,
+        sort=sort,
+        direction=direction,
+        author=author,
+        labels=labels,
+        base=base,
+        head=head,
+        draft=draft,
         per_page=max(1, min(per_page, 100)),
         page=max(1, page),
         max_pages=max(1, min(max_pages, 10)),
         client=_client(github_host),
     )
-
 
 @mcp.tool()
 async def get_pull_request_detail(
