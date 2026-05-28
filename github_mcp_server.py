@@ -299,3 +299,84 @@ if __name__ == "__main__":
         uvicorn.run(asgi_app, host=host, port=port)
     else:
         mcp.run(transport=transport)
+
+
+# ── Repository search ─────────────────────────────────────────────────────────
+@mcp.tool()
+async def search_repository_files(
+    owner: str,
+    repo: str,
+    query: str,
+    ref: str = "",
+    per_page: int = 30,
+    page: int = 1,
+    github_host: str = "",
+) -> list[dict]:
+    """
+    Search repository files by filename or path.
+
+    Features:
+    - Search by filename
+    - Search by extension
+    - Search nested paths
+    - Pagination support
+    - Optional branch/ref support
+
+    Examples:
+    - Dockerfile
+    - package.json
+    - *.yml
+    - src/api
+
+    Use github_host='ibm' for GitHub Enterprise.
+    """
+
+    return await gh.search_repository_files(
+        owner,
+        repo,
+        query=query,
+        ref=ref,
+        per_page=max(1, min(per_page, 100)),
+        page=max(1, page),
+        client=_client(github_host),
+    )
+
+
+@mcp.tool()
+async def search_repository_code(
+    owner: str,
+    repo: str,
+    query: str,
+    ref: str = "",
+    per_page: int = 30,
+    page: int = 1,
+    github_host: str = "",
+) -> list[dict]:
+    """
+    Search inside repository code/content.
+
+    Features:
+    - Search code text
+    - Detect deprecated APIs
+    - Find routes/functions
+    - Pagination support
+    - Optional branch/ref support
+
+    Examples:
+    - FastAPI
+    - TODO
+    - deprecated_function
+    - router.get
+
+    Use github_host='ibm' for GitHub Enterprise.
+    """
+
+    return await gh.search_repository_code(
+        owner,
+        repo,
+        query=query,
+        ref=ref,
+        per_page=max(1, min(per_page, 100)),
+        page=max(1, page),
+        client=_client(github_host),
+    )
